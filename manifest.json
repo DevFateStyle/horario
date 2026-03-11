@@ -1,0 +1,9 @@
+{
+  "name": "Mi Horario",
+  "short_name": "Horario",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0d5cab",
+  "icons": []
+}

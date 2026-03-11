@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Horario personal</title>
+  <style>
+    :root{
+      --azul:#74aee0;
+      --azul-oscuro:#0d5cab;
+      --amarillo:#eef27a;
+      --texto:#16324a;
+      --borde:#c7d3df;
+      --fondo:#f4f8ff;
+      --sombra:0 8px 24px rgba(13,92,171,.10);
+      --hora-col:92px;
+      --dia-col:minmax(170px,1fr);
+      --slot:34px;
+      --ahora:#ff6b35;
+      --resalte:#fff3c4;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:Arial,Helvetica,sans-serif;
+      color:var(--texto);
+      background:linear-gradient(180deg,#eff6ff 0%,#fff 100%);
+    }
+    .wrap{max-width:1480px;margin:0 auto;padding:24px}
+    .top,.schedule-card,.mobile-card{
+      background:#fff;border-radius:18px;box-shadow:var(--sombra)
+    }
+    .top{padding:20px;margin-bottom:20px}
+    h1{margin:0 0 8px;font-size:2rem;color:var(--azul-oscuro)}
+    .sub{margin:0;line-height:1.45}
+    .controls{
+      display:grid;
+      grid-template-columns:1.6fr 1fr;
+      gap:14px;
+      margin-top:18px;
+      align-items:start;
+    }
+    .control-box{
+      border:1px solid #d9e6f4;
+      border-radius:14px;
+      padding:14px;
+      background:#f9fbff;
+    }
+    .control-box h3{
+      margin:0 0 8px;
+      font-size:1rem;
+      color:var(--azul-oscuro);
+    }
+    .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+    .badge{
+      display:inline-flex;align-items:center;justify-content:center;
+      min-width:42px;height:42px;border-radius:999px;border:2px solid var(--azul-oscuro);
+      background:#fff;color:var(--azul-oscuro);font-weight:700;cursor:pointer
+    }
+    .badge.active{background:var(--azul-oscuro);color:#fff}
+    .btn{
+      border:0;border-radius:12px;background:var(--azul-oscuro);color:#fff;
+      padding:11px 16px;font-weight:700;cursor:pointer
+    }
+    .btn.sec{
+      background:#eaf2fb;color:var(--azul-oscuro);border:1px solid #cfe0f2
+    }
+    input[type="date"]{
+      border:1px solid #cfdceb;border-radius:12px;padding:10px 12px;
+      font:inherit;background:#fff;color:var(--texto)
+    }
+    .status{
+      margin-top:8px;
+      padding:10px 12px;
+      background:#eef6ff;
+      border-radius:12px;
+      font-size:.95rem;
+      line-height:1.4;
+    }
+    .legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:14px;font-size:.95rem}
+    .legend span{display:inline-flex;align-items:center;gap:8px}
+    .swatch{width:18px;height:18px;border-radius:5px;border:1px solid rgba(0,0,0,.08)}
+
+    .schedule-card{overflow:auto}
+    .schedule{
+      min-width:1100px;
+      display:grid;
+      grid-template-columns:var(--hora-col) repeat(5,var(--dia-col));
+      grid-template-rows:54px;
+    }
+    .head{
+      background:var(--azul-oscuro);color:#fff;font-weight:700;
+      display:flex;align-items:center;justify-content:center;
+      border-right:1px solid rgba(255,255,255,.18);
+      position:sticky;top:0;z-index:6
+    }
+    .hours-col,.day-col{
+      position:relative;min-height:calc(31 * var(--slot))
+    }
+    .hours-col{
+      grid-column:1;
+      background:#0d5cab;
+      background-image:linear-gradient(to bottom,rgba(255,255,255,.22) 1px,transparent 1px);
+      background-size:100% var(--slot);
+      border-right:2px solid #fff;color:#fff
+    }
+    .day-col{
+      background-image:linear-gradient(to bottom,var(--borde) 1px,transparent 1px);
+      background-size:100% var(--slot);
+      border-right:1px solid var(--borde)
+    }
+    .day-col.today{
+      background-color:#f8fbff;
+      box-shadow:inset 0 0 0 3px rgba(13,92,171,.12);
+    }
+    .hour-label{
+      position:absolute;left:0;width:100%;height:var(--slot);
+      display:flex;align-items:flex-start;justify-content:center;
+      padding-top:4px;font-size:.82rem;font-weight:700
+    }
+    .class{
+      position:absolute;left:8px;right:8px;border-radius:14px;
+      padding:10px 10px 8px;border:1px solid rgba(0,0,0,.08);
+      box-shadow:0 3px 8px rgba(0,0,0,.06);overflow:hidden;
+      transition:transform .15s ease, box-shadow .15s ease, outline .15s ease;
+    }
+    .class:hover{transform:translateY(-1px)}
+    .theory{background:var(--azul)}
+    .practice{background:var(--amarillo)}
+    .class.current{
+      outline:4px solid var(--ahora);
+      box-shadow:0 0 0 6px rgba(255,107,53,.18), 0 8px 22px rgba(0,0,0,.12);
+      z-index:7;
+    }
+    .time{font-size:.8rem;font-weight:700;margin-bottom:6px;opacity:.85}
+    .title{font-weight:700;line-height:1.2;margin-bottom:4px;font-size:.95rem}
+    .meta{font-size:.83rem;line-height:1.25}
+    .now-line{
+      position:absolute;left:0;right:0;height:3px;background:var(--ahora);
+      z-index:5;box-shadow:0 0 0 2px rgba(255,107,53,.15)
+    }
+    .now-line::after{
+      content:'';
+      position:absolute;left:0;top:50%;transform:translate(-35%,-50%);
+      width:12px;height:12px;background:var(--ahora);border-radius:50%;
+    }
+    .footer-note{padding:16px 20px 20px;color:#4d6478;font-size:.95rem}
+
+    .mobile-area{display:none}
+    .mobile-card{padding:14px 14px 8px;margin-top:18px}
+    .mobile-day{margin-bottom:14px;border:1px solid #e2eaf4;border-radius:14px;overflow:hidden}
+    .mobile-day.today{box-shadow:0 0 0 3px rgba(13,92,171,.12)}
+    .mobile-day h3{
+      margin:0;padding:12px 14px;background:#eef5ff;color:var(--azul-oscuro);font-size:1rem
+    }
+    .mobile-classes{padding:10px;display:flex;flex-direction:column;gap:10px}
+    .mobile-item{
+      border-radius:14px;padding:12px;border:1px solid rgba(0,0,0,.08);box-shadow:0 2px 8px rgba(0,0,0,.05)
+    }
+    .mobile-item.theory{background:var(--azul)}
+    .mobile-item.practice{background:var(--amarillo)}
+    .mobile-item.current{
+      outline:4px solid var(--ahora);
+      background:var(--resalte);
+    }
+    .empty{padding:12px 14px;color:#667b90;font-size:.95rem}
+
+    @media (max-width:960px){
+      .wrap{padding:14px}
+      h1{font-size:1.55rem}
+      .sub{font-size:.95rem}
+      .controls{grid-template-columns:1fr}
+    }
+    @media (max-width:760px){
+      .schedule-card{display:none}
+      .mobile-area{display:block}
+      .top{padding:16px}
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <section class="top">
+    <h1>Horario personal</h1>
+    <p class="sub">
+      He dejado solo tus asignaturas, sin <strong>Formación transversal</strong> ni <strong>Francés</strong>.
+      Las clases azules son fijas. Las amarillas son prácticas y siguen la rotación
+      <strong>2 → 3 → 1 → 2 → 3...</strong>
+    </p>
+
+    <div class="controls">
+      <div class="control-box">
+        <h3>Semana automática</h3>
+        <div class="row">
+          <label for="cycleStart"><strong>Lunes inicial del ciclo:</strong></label>
+          <input type="date" id="cycleStart" />
+          <button class="btn sec" id="autoBtn">Usar automático</button>
+        </div>
+        <div class="status" id="autoInfo"></div>
+      </div>
+
+      <div class="control-box">
+        <h3>Cambiar semana manualmente</h3>
+        <div class="row">
+          <button class="badge" data-week="2">2</button>
+          <button class="badge" data-week="3">3</button>
+          <button class="badge" data-week="1">1</button>
+          <button class="btn" id="nextWeek">Siguiente</button>
+        </div>
+        <div class="status" id="weekText"></div>
+      </div>
+    </div>
+
+    <div class="legend">
+      <span><i class="swatch" style="background:var(--azul)"></i> Clases fijas</span>
+      <span><i class="swatch" style="background:var(--amarillo)"></i> Prácticas según rotación</span>
+      <span><i class="swatch" style="background:var(--ahora)"></i> Clase actual</span>
+    </div>
+  </section>
+
+  <section class="schedule-card">
+    <div class="schedule">
+      <div class="head">Horas</div>
+      <div class="head">Lunes</div>
+      <div class="head">Martes</div>
+      <div class="head">Miércoles</div>
+      <div class="head">Jueves</div>
+      <div class="head">Viernes</div>
+
+      <div class="hours-col" id="hours"></div>
+      <div class="day-col" id="lunes"></div>
+      <div class="day-col" id="martes"></div>
+      <div class="day-col" id="miercoles"></div>
+      <div class="day-col" id="jueves"></div>
+      <div class="day-col" id="viernes"></div>
+    </div>
+    <div class="footer-note">
+      En móvil se muestra una versión en tarjetas para verlo mejor en el teléfono.
+      La semana se calcula automáticamente según la fecha real y el lunes inicial del ciclo.
+    </div>
+  </section>
+
+  <section class="mobile-area" id="mobileArea"></section>
+</div>
+
+<script>
+const SLOT = 34;
+const startMinutes = 8 * 60 + 30;
+const cycle = [2,3,1];
+const weekdayNames = ['domingo','lunes','martes','miercoles','jueves','viernes','sabado'];
+const visibleDays = ['lunes','martes','miercoles','jueves','viernes'];
+const dayTitles = {
+  lunes:'Lunes',
+  martes:'Martes',
+  miercoles:'Miércoles',
+  jueves:'Jueves',
+  viernes:'Viernes'
+};
+
+const hours = [
+  '08:30','08:45','09:00','09:15','09:30','09:45','10:00','10:15','10:30','10:45',
+  '11:00','11:15','11:30','11:45','12:00','12:15','12:30','12:45','13:00','13:15',
+  '13:30','13:45','14:00','14:15','14:30','14:45','15:00','15:15','15:30','15:45','16:00'
+];
+
+const theoryClasses = [
+  {day:'miercoles',start:'08:30',end:'10:15',title:'Idioma Extranjero para el Profesorado de Primaria (Inglés)',meta:'A22 · GG2',type:'theory'},
+  {day:'miercoles',start:'11:00',end:'12:30',title:'Didáctica de las Ciencias Sociales en Educación Primaria',meta:'A22 · GG2',type:'theory'},
+  {day:'miercoles',start:'13:00',end:'15:00',title:'Didáctica de la Educación Física',meta:'A22 · GG2',type:'theory'},
+  {day:'jueves',start:'10:00',end:'12:00',title:'Didáctica de las Ciencias Sociales en Educación Primaria',meta:'A22 · GG2',type:'theory'},
+  {day:'jueves',start:'12:00',end:'13:30',title:'Didáctica de las Ciencias Experimentales en Educación Primaria',meta:'A19 · GG2',type:'theory'},
+  {day:'jueves',start:'13:30',end:'15:30',title:'Idioma Extranjero para el Profesorado de Primaria (Inglés)',meta:'A19 · GG2',type:'theory'},
+  {day:'viernes',start:'08:30',end:'10:00',title:'Didáctica de las Ciencias Experimentales en Educación Primaria',meta:'A19 · GG2',type:'theory'},
+  {day:'viernes',start:'10:00',end:'12:00',title:'Didáctica de la Educación Física',meta:'A19 · GG2',type:'theory'}
+];
+
+const practiceByWeek = {
+  1: [
+    {day:'lunes',start:'08:30',end:'10:00',title:'Didáctica de las Ciencias Experimentales en Educación Primaria',meta:'Lab. 2 · GM1',type:'practice'},
+    {day:'lunes',start:'11:30',end:'13:00',title:'Didáctica de las Ciencias Sociales en Educación Primaria',meta:'NNTT3 · GM1',type:'practice'},
+    {day:'martes',start:'08:30',end:'10:00',title:'Idioma Extranjero para el Profesorado de Primaria (Inglés)',meta:'A18 · GM1',type:'practice'},
+    {day:'martes',start:'13:00',end:'14:30',title:'Didáctica de la Educación Física',meta:'Polidep. 1 · GM1',type:'practice'}
+  ],
+  2: [
+    {day:'lunes',start:'10:00',end:'11:30',title:'Didáctica de las Ciencias Experimentales en Educación Primaria',meta:'Lab. 2 · GM2',type:'practice'},
+    {day:'lunes',start:'13:00',end:'14:30',title:'Didáctica de las Ciencias Sociales en Educación Primaria',meta:'NNTT3 · GM2',type:'practice'},
+    {day:'martes',start:'11:30',end:'13:00',title:'Didáctica de la Educación Física',meta:'Polidep. 1 · GM2',type:'practice'},
+    {day:'martes',start:'13:00',end:'14:30',title:'Idioma Extranjero para el Profesorado de Primaria (Inglés)',meta:'A18 · GM2',type:'practice'}
+  ],
+  3: [
+    {day:'lunes',start:'10:00',end:'11:30',title:'Didáctica de las Ciencias Sociales en Educación Primaria',meta:'NNTT3 · GM3',type:'practice'},
+    {day:'lunes',start:'11:30',end:'13:00',title:'Didáctica de las Ciencias Experimentales en Educación Primaria',meta:'Lab. 2 · GM3',type:'practice'},
+    {day:'martes',start:'08:30',end:'10:00',title:'Didáctica de la Educación Física',meta:'Polidep. 1 · GM3',type:'practice'},
+    {day:'martes',start:'11:30',end:'13:00',title:'Idioma Extranjero para el Profesorado de Primaria (Inglés)',meta:'A18 · GM3',type:'practice'}
+  ]
+};
+
+let currentWeek = 2;
+let autoMode = true;
+let liveTimer = null;
+
+function pad(n){ return String(n).padStart(2,'0'); }
+function formatDateInput(date){
+  return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}`;
+}
+function formatDateES(date){
+  return `${pad(date.getDate())}/${pad(date.getMonth()+1)}/${date.getFullYear()}`;
+}
+function toMinutes(h){
+  const [a,b] = h.split(':').map(Number);
+  return a*60+b;
+}
+function topPx(t){ return ((toMinutes(t) - startMinutes) / 15) * SLOT; }
+function heightPx(a,b){ return ((toMinutes(b) - toMinutes(a)) / 15) * SLOT; }
+
+function normalizeDate(date){
+  const d = new Date(date);
+  d.setHours(0,0,0,0);
+  return d;
+}
+function mondayOf(date){
+  const d = normalizeDate(date);
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  return d;
+}
+function sameDate(a,b){
+  return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
+}
+function weekFromDate(today, cycleStartMonday){
+  const thisMonday = mondayOf(today);
+  const diffMs = normalizeDate(thisMonday) - normalizeDate(cycleStartMonday);
+  const diffWeeks = Math.floor(diffMs / (7*24*60*60*1000));
+  let idx = diffWeeks % cycle.length;
+  if(idx < 0) idx += cycle.length;
+  return cycle[idx];
+}
+function currentDayKey(){
+  const now = new Date();
+  return weekdayNames[now.getDay()];
+}
+function isCurrentClass(item){
+  const now = new Date();
+  const dayKey = currentDayKey();
+  if(!visibleDays.includes(dayKey) || item.day !== dayKey) return false;
+  const minutes = now.getHours()*60 + now.getMinutes();
+  return minutes >= toMinutes(item.start) && minutes < toMinutes(item.end);
+}
+function getCombinedClasses(week){
+  return [...theoryClasses, ...(practiceByWeek[week] || [])]
+    .sort((a,b)=> toMinutes(a.start)-toMinutes(b.start));
+}
+function createHourLabels(){
+  const c = document.getElementById('hours');
+  c.innerHTML = '';
+  hours.forEach((hour,i)=>{
+    const d = document.createElement('div');
+    d.className = 'hour-label';
+    d.style.top = `${i*SLOT}px`;
+    d.textContent = hour;
+    c.appendChild(d);
+  });
+}
+function createClassBlock(item){
+  const el = document.createElement('div');
+  el.className = `class ${item.type}${isCurrentClass(item) ? ' current' : ''}`;
+  el.style.top = `${topPx(item.start)}px`;
+  el.style.height = `${heightPx(item.start,item.end)}px`;
+  el.innerHTML = `
+    <div class="time">${item.start} - ${item.end}</div>
+    <div class="title">${item.title}</div>
+    <div class="meta">${item.meta}</div>
+  `;
+  return el;
+}
+function clearDays(){
+  visibleDays.forEach(id=>{
+    const col = document.getElementById(id);
+    col.innerHTML = '';
+    col.classList.toggle('today', id === currentDayKey());
+  });
+}
+function drawNowLine(){
+  document.querySelectorAll('.now-line').forEach(el => el.remove());
+  const now = new Date();
+  const dayKey = currentDayKey();
+  if(!visibleDays.includes(dayKey)) return;
+  const mins = now.getHours()*60 + now.getMinutes();
+  if(mins < startMinutes || mins > toMinutes('16:15')) return;
+  const line = document.createElement('div');
+  line.className = 'now-line';
+  line.style.top = `${((mins - startMinutes) / 15) * SLOT}px`;
+  document.getElementById(dayKey).appendChild(line);
+}
+function renderDesktop(week){
+  clearDays();
+  getCombinedClasses(week).forEach(item=>{
+    document.getElementById(item.day).appendChild(createClassBlock(item));
+  });
+  drawNowLine();
+}
+function createMobileItem(item){
+  const div = document.createElement('div');
+  div.className = `mobile-item ${item.type}${isCurrentClass(item) ? ' current' : ''}`;
+  div.innerHTML = `
+    <div class="time">${item.start} - ${item.end}</div>
+    <div class="title">${item.title}</div>
+    <div class="meta">${item.meta}</div>
+  `;
+  return div;
+}
+function renderMobile(week){
+  const area = document.getElementById('mobileArea');
+  area.innerHTML = '';
+  const classes = getCombinedClasses(week);
+  visibleDays.forEach(day=>{
+    const card = document.createElement('div');
+    card.className = `mobile-card mobile-day${day===currentDayKey() ? ' today' : ''}`;
+    const title = document.createElement('h3');
+    title.textContent = dayTitles[day];
+    const body = document.createElement('div');
+    body.className = 'mobile-classes';
+    const items = classes.filter(c => c.day === day);
+    if(items.length){
+      items.forEach(item => body.appendChild(createMobileItem(item)));
+    } else {
+      body.innerHTML = `<div class="empty">Sin clases.</div>`;
+    }
+    card.appendChild(title);
+    card.appendChild(body);
+    area.appendChild(card);
+  });
+}
+function updateWeekText(week){
+  const mode = autoMode ? 'automática' : 'manual';
+  document.getElementById('weekText').innerHTML = `<strong>Mostrando la semana ${week}</strong> · selección ${mode}`;
+  document.querySelectorAll('.badge').forEach(btn=>{
+    btn.classList.toggle('active', btn.dataset.week === String(week));
+  });
+}
+function updateAutoInfo(){
+  const input = document.getElementById('cycleStart');
+  const start = new Date(input.value + 'T00:00:00');
+  const today = new Date();
+  const monday = mondayOf(today);
+  const calculated = weekFromDate(today, start);
+  document.getElementById('autoInfo').innerHTML =
+    `<strong>Hoy:</strong> ${formatDateES(today)} · <strong>Lunes de esta semana:</strong> ${formatDateES(monday)}<br>` +
+    `<strong>Inicio del ciclo:</strong> ${formatDateES(start)} como semana 2 · ` +
+    `<strong>Semana calculada:</strong> ${calculated}`;
+}
+function render(week){
+  currentWeek = week;
+  renderDesktop(week);
+  renderMobile(week);
+  updateWeekText(week);
+}
+function applyAutomaticWeek(){
+  autoMode = true;
+  const input = document.getElementById('cycleStart');
+  const start = new Date(input.value + 'T00:00:00');
+  const week = weekFromDate(new Date(), start);
+  updateAutoInfo();
+  render(week);
+}
+function manualWeek(week){
+  autoMode = false;
+  updateAutoInfo();
+  render(week);
+}
+function refreshLive(){
+  const targetWeek = autoMode
+    ? weekFromDate(new Date(), new Date(document.getElementById('cycleStart').value + 'T00:00:00'))
+    : currentWeek;
+  render(targetWeek);
+  updateAutoInfo();
+}
+
+const cycleStartInput = document.getElementById('cycleStart');
+cycleStartInput.value = '2025-09-08';
+
+createHourLabels();
+applyAutomaticWeek();
+
+document.querySelectorAll('.badge').forEach(btn=>{
+  btn.addEventListener('click', ()=> manualWeek(Number(btn.dataset.week)));
+});
+document.getElementById('nextWeek').addEventListener('click', ()=>{
+  autoMode = false;
+  const idx = cycle.indexOf(currentWeek);
+  render(cycle[(idx+1)%cycle.length]);
+});
+document.getElementById('autoBtn').addEventListener('click', applyAutomaticWeek);
+cycleStartInput.addEventListener('change', ()=>{
+  if(autoMode) applyAutomaticWeek();
+  else updateAutoInfo();
+});
+
+liveTimer = setInterval(refreshLive, 60000);
+refreshLive();
+</script>
+</body>
+</html>
